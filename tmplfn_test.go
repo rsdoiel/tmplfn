@@ -35,6 +35,9 @@
 package tmplfn
 
 import (
+	"bytes"
+	"fmt"
+	"strings"
 	"testing"
 	"text/template"
 )
@@ -52,4 +55,78 @@ func TestJoin(t *testing.T) {
 			t.Errorf("Can't find %s in m2", key)
 		}
 	}
+}
+
+func TestCodeBlock(t *testing.T) {
+	data := map[string]interface{}{
+		"data": `
+echo "Hello World!"
+`,
+	}
+	tSrc := `
+This is a codeblock below
+
+{{codeblock .data 0 0 "shell"}}
+`
+
+	expected := fmt.Sprintf(`
+This is a codeblock below
+
+%sshell
+    echo "Hello World!"
+%s
+`, "```", "```")
+
+	fMap := Join(TimeMap, PageMap)
+	tmpl, err := AssembleString(fMap, tSrc)
+	if err != nil {
+		t.Errorf("%s", err)
+		t.FailNow()
+	}
+	buf := bytes.NewBuffer([]byte{})
+	err = tmpl.Execute(buf, data)
+	if err != nil {
+		t.Errorf("%s", err)
+		t.FailNow()
+	}
+	result := fmt.Sprintf("%s", buf)
+	if result != expected {
+		t.Errorf("codeblock expected:\n\n%s\n\ngot:\n\n%s\n", expected, buf)
+		t.FailNow()
+	}
+
+	data["data"] = `
+# This is a comment.
+if [[ i > "1" ]]; then
+	echo "i is $i"
+fi
+
+# done!
+`
+	expected = fmt.Sprintf(`
+This is a codeblock below
+
+%sshell
+    # This is a comment.
+    if [[ i > 1 ]]; then
+        echo "i is $i"
+    fi 
+
+    # done!
+%s
+`, "```", "```")
+
+	buf = bytes.NewBuffer([]byte{})
+	err = tmpl.Execute(buf, data)
+	if err != nil {
+		t.Errorf("%s", err)
+		t.FailNow()
+	}
+
+	result = fmt.Sprintf("%s", buf)
+	if strings.Compare(result, expected) == 0 {
+		t.Errorf("codeblock expected:\n\n[%s]\n\ngot:\n\n[%s]\n", expected, buf)
+		t.FailNow()
+	}
+
 }

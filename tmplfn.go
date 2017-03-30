@@ -41,6 +41,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/url"
+	"path"
 	"strconv"
 	"strings"
 	"text/template"
@@ -238,6 +239,30 @@ var (
 			}
 			return ""
 		},
+		"codeblock": func(src string, start int, end int, hint string) string {
+			result := []string{}
+			lines := strings.Split(src, "\n")
+			if start < 1 {
+				start = 0
+			}
+			if end < 1 {
+				end = len(lines)
+			}
+			if (end - start) > 0 {
+				result = append(result, fmt.Sprintf("```%s", hint))
+			}
+			for i, line := range lines[start:end] {
+				if len(line) > 0 {
+					result = append(result, fmt.Sprintf("    %s", line))
+				} else if i > 0 && i < (end-1) {
+					result = append(result, "")
+				}
+			}
+			if len(result) > 0 {
+				result = append(result, "```")
+			}
+			return strings.Join(result, "\n")
+		},
 	}
 )
 
@@ -275,6 +300,20 @@ func Join(maps ...template.FuncMap) template.FuncMap {
 		}
 	}
 	return result
+}
+
+// Assemble support a very simple template setup of an outer HTML file with a content include
+// along with common template functions.
+func Assemble(tmplFuncs template.FuncMap, templateFilenames ...string) (*template.Template, error) {
+	if len(templateFilenames) > 0 {
+		return template.New(path.Base(templateFilenames[0])).Funcs(tmplFuncs).ParseFiles(templateFilenames...)
+	}
+	return nil, fmt.Errorf("No template names specified")
+}
+
+// AssembleString like Assemble but using a string as a source for the template
+func AssembleString(tmplFuncs template.FuncMap, src string) (*template.Template, error) {
+	return template.New("master").Funcs(tmplFuncs).Parse(src)
 }
 
 // AssemblePage support a very simple template setup of an outer HTML file with a content include
